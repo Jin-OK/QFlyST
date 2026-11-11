@@ -1,0 +1,521 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>800</width>
+    <height>500</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>QFlyST V1.0 - STM32在线编程工具</string>
+  </property>
+  <property name="styleSheet">
+   <string>
+    * {
+        color: #333333;
+        font-family: &quot;Microsoft YaHei&quot;, &quot;Segoe UI&quot;, sans-serif;
+    }
+    QMainWindow { background-color: #f5f5f5; }
+    QGroupBox {
+        font-weight: bold;
+        font-size: 11px;
+        border: 1px solid #c0c0c0;
+        border-radius: 3px;
+        margin-top: 6px;
+        padding-top: 6px;
+        background-color: #ffffff;
+    }
+    QGroupBox::title {
+        subcontrol-origin: margin;
+        left: 8px;
+        padding: 0 3px;
+    }
+    QLabel { color: #333333; background: transparent; }
+    QPushButton {
+        padding: 4px 10px;
+        border: 1px solid #a0a0a0;
+        border-radius: 2px;
+        background-color: #f0f0f0;
+        min-height: 22px;
+    }
+    QPushButton:hover { background-color: #e0e8ff; border-color: #5080ff; }
+    QPushButton:pressed { background-color: #d0d8f0; }
+    QPushButton:disabled { background-color: #e0e0e0; color: #808080; }
+    QComboBox {
+        padding: 3px 6px;
+        border: 1px solid #a0a0a0;
+        border-radius: 2px;
+        background-color: #ffffff;
+    }
+    QComboBox:hover { border-color: #5080ff; }
+    QLineEdit {
+        padding: 3px 6px;
+        border: 1px solid #a0a0a0;
+        border-radius: 2px;
+        background-color: #ffffff;
+    }
+    QCheckBox { spacing: 5px; }
+    QCheckBox:hover { color: #0066cc; }
+    QTextEdit {
+        border: 1px solid #a0a0a0;
+        background-color: #fafafa;
+        font-family: &quot;Consolas&quot;, monospace;
+        font-size: 9pt;
+    }
+    QMenuBar { background-color: #f5f5f5; border-bottom: 1px solid #c0c0c0; }
+    QMenuBar::item { padding: 4px 8px; }
+    QMenuBar::item:selected { background-color: #e0e8ff; }
+    QMenu { background-color: #ffffff; border: 1px solid #c0c0c0; }
+    QMenu::item { padding: 4px 20px; }
+    QMenu::item:selected { background-color: #e0e8ff; }
+    QStatusBar { background-color: #f0f0f0; border-top: 1px solid #c0c0c0; }
+    QProgressBar {
+        border: 1px solid #a0a0a0;
+        background-color: #ffffff;
+        text-align: center;
+    }
+    QProgressBar::chunk { background-color: #4CAF50; }
+   </string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QHBoxLayout" name="mainLayout">
+    <property name="spacing">
+     <number>8</number>
+    </property>
+    <property name="leftMargin">
+     <number>8</number>
+    </property>
+    <property name="topMargin">
+     <number>8</number>
+    </property>
+    <property name="rightMargin">
+     <number>8</number>
+    </property>
+    <property name="bottomMargin">
+     <number>8</number>
+    </property>
+    <item>
+     <widget class="QWidget" name="leftPanel" native="true">
+      <property name="minimumSize">
+       <size>
+        <width>260</width>
+        <height>0</height>
+       </size>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>280</width>
+        <height>16777215</height>
+       </size>
+      </property>
+      <layout class="QVBoxLayout" name="leftLayout">
+       <property name="spacing">
+        <number>6</number>
+       </property>
+       <item>
+        <widget class="QGroupBox" name="grpSerial">
+         <property name="title">
+          <string>串口设置</string>
+         </property>
+         <layout class="QVBoxLayout" name="serialLayout">
+          <property name="leftMargin">
+           <number>6</number>
+          </property>
+          <property name="topMargin">
+           <number>14</number>
+          </property>
+          <property name="rightMargin">
+           <number>6</number>
+          </property>
+          <property name="bottomMargin">
+           <number>6</number>
+          </property>
+          <item>
+           <layout class="QHBoxLayout" name="portLayout">
+            <item>
+             <widget class="QLabel" name="lblPort">
+              <property name="text">
+               <string>串口:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QComboBox" name="cbSerialPort">
+              <property name="minimumSize">
+               <size>
+                <width>100</width>
+                <height>0</height>
+               </size>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="btnRefreshPorts">
+              <property name="text">
+               <string>搜索</string>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>50</width>
+                <height>16777215</height>
+               </size>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <layout class="QHBoxLayout" name="baudLayout">
+            <item>
+             <widget class="QLabel" name="lblBaud">
+              <property name="text">
+               <string>波特率:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QComboBox" name="cbBaudRate">
+              <property name="editable">
+               <bool>true</bool>
+              </property>
+              <property name="currentIndex">
+               <number>4</number>
+              </property>
+              <item>
+               <property name="text">
+                <string>9600</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>19200</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>38400</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>57600</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>115200</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>921600</string>
+               </property>
+              </item>
+             </widget>
+            </item>
+           </layout>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="grpRTSDTR">
+         <property name="title">
+          <string>RTS/DTR 配置</string>
+         </property>
+         <layout class="QVBoxLayout" name="rtsDtrLayout">
+          <property name="leftMargin">
+           <number>6</number>
+          </property>
+          <property name="topMargin">
+           <number>14</number>
+          </property>
+          <property name="rightMargin">
+           <number>6</number>
+          </property>
+          <property name="bottomMargin">
+           <number>6</number>
+          </property>
+          <item>
+           <widget class="QComboBox" name="cbBootMode">
+            <item>
+             <property name="text">
+              <string>不使用</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>RTS高电平复位, DTR低电平进BootLoader</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>RTS低电平复位, DTR高电平进BootLoader</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>RTS高电平复位, DTR高电平进BootLoader</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>RTS低电平复位, DTR低电平进BootLoader</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>仅RTS控制(需手动复位)</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>仅DTR控制(BOOT0外部设定)</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="grpFile">
+         <property name="title">
+          <string>固件文件</string>
+         </property>
+         <layout class="QVBoxLayout" name="fileLayout">
+          <property name="leftMargin">
+           <number>6</number>
+          </property>
+          <property name="topMargin">
+           <number>14</number>
+          </property>
+          <property name="rightMargin">
+           <number>6</number>
+          </property>
+          <property name="bottomMargin">
+           <number>6</number>
+          </property>
+          <item>
+           <widget class="QLineEdit" name="editFirmwarePath">
+            <property name="readOnly">
+             <bool>false</bool>
+            </property>
+            <property name="placeholderText">
+             <string>请选择或输入固件文件路径...</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="btnSelectFile">
+            <property name="text">
+             <string>选择文件...</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="groupBox_3">
+         <property name="title">
+          <string>固件起始地址</string>
+         </property>
+         <layout class="QHBoxLayout" name="horizontalLayout_4">
+          <property name="leftMargin">
+           <number>6</number>
+          </property>
+          <property name="topMargin">
+           <number>6</number>
+          </property>
+          <property name="rightMargin">
+           <number>6</number>
+          </property>
+          <property name="bottomMargin">
+           <number>6</number>
+          </property>
+          <item>
+           <widget class="QLineEdit" name="editStartAddress">
+            <property name="text">
+             <string>08000000</string>
+            </property>
+            <property name="placeholderText">
+             <string>十六进制地址，如: 08000000</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnStartProgram">
+         <property name="text">
+          <string>开始烧录</string>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>45</height>
+          </size>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>11</pointsize>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="styleSheet">
+          <string>QPushButton {
+              background-color: #4CAF50;
+              color: white;
+              border: 2px solid #388E3C;
+              border-radius: 3px;
+          }
+          QPushButton:hover {
+              background-color: #45a049;
+              border: 2px solid #2E7D32;
+          }
+          QPushButton:pressed {
+              background-color: #388E3C;
+          }
+          QPushButton:disabled {
+              background-color: #a5d6a5;
+          }</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="chkVerify">
+         <property name="text">
+          <string>校验</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="chkRunAfter">
+         <property name="text">
+          <string>编程后执行</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QGridLayout" name="actionBtnGrid">
+         <property name="horizontalSpacing">
+          <number>6</number>
+         </property>
+         <property name="verticalSpacing">
+          <number>6</number>
+         </property>
+         <item row="0" column="0">
+          <widget class="QPushButton" name="btnReadInfo">
+           <property name="text">
+            <string>读取芯片信息</string>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QPushButton" name="btnEraseChip">
+           <property name="text">
+            <string>清除芯片</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0" colspan="2">
+          <widget class="QPushButton" name="btnReadFlash">
+           <property name="text">
+            <string>读取FLASH</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <spacer name="verticalSpacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
+     <layout class="QVBoxLayout" name="rightLayout">
+      <item>
+       <widget class="QTextEdit" name="logView">
+        <property name="readOnly">
+         <bool>true</bool>
+        </property>
+        <property name="font">
+         <font>
+          <family>SimHei</family>
+          <pointsize>12</pointsize>
+          <bold>true</bold>
+         </font>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="logBtnLayout">
+        <item>
+         <spacer name="horizontalSpacer">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>800</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuSystem">
+    <property name="title">
+     <string>系统</string>
+    </property>
+    <addaction name="actionExit"/>
+   </widget>
+   <widget class="QMenu" name="menuHelp">
+    <property name="title">
+     <string>帮助</string>
+    </property>
+    <addaction name="actionAbout"/>
+   </widget>
+   <addaction name="menuSystem"/>
+   <addaction name="menuHelp"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionExit">
+   <property name="text">
+    <string>退出</string>
+   </property>
+  </action>
+  <action name="actionAbout">
+   <property name="text">
+    <string>关于...</string>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
