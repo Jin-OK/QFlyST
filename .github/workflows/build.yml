@@ -1,0 +1,257 @@
+name: Build QFlyST
+
+on:
+  push:
+    branches: [ main, master ]
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.5.3'
+          host: 'windows'
+          target: 'desktop'
+          arch: 'win64_msvc2019_64'
+          modules: 'qtserialport'
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Configure
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="${{ env.Qt6_DIR }}"
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Deploy
+        run: |
+          cd build
+          windeployqt --release --no-translations QFlyST.exe
+          # 手动复制 SVG 图像格式插件（windeployqt 默认不复制）
+          if (-Not (Test-Path "imageformats")) { New-Item -ItemType Directory -Path "imageformats" }
+          Copy-Item "$env:QT_ROOT_DIR\plugins\imageformats\qsvg.dll" -Destination "imageformats\" -Force -ErrorAction SilentlyContinue
+
+      - name: Package
+        run: |
+          mkdir package
+          xcopy build\QFlyST.exe package\ /Y
+          xcopy build\*.dll package\ /Y
+          xcopy build\platforms package\platforms\ /Y /I
+          xcopy build\styles package\styles\ /Y /I 2>nul || echo No styles
+          xcopy build\imageformats package\imageformats\ /Y /I 2>nul || echo No imageformats
+          xcopy build\platformthemes package\platformthemes\ /Y /I 2>nul || echo No platformthemes
+          xcopy build\tls package\tls\ /Y /I 2>nul || echo No tls
+          cd package
+          7z a QFlyST-windows-x64.zip *
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: QFlyST-windows-x64
+          path: package/QFlyST-windows-x64.zip
+
+  build-macos-arm64:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.5.3'
+          host: 'mac'
+          target: 'desktop'
+          arch: 'clang_64'
+          modules: 'qtserialport'
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="${{ env.Qt6_DIR }}"
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Create DMG
+        run: |
+          cd build
+          macdeployqt QFlyST.app -dmg
+          mv QFlyST.dmg QFlyST-macos-arm64.dmg
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: QFlyST-macos-arm64
+          path: build/QFlyST-macos-arm64.dmg
+
+  build-linux-x64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.5.3'
+          host: 'linux'
+          target: 'desktop'
+          arch: 'gcc_64'
+          modules: 'qtserialport'
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="${{ env.Qt6_DIR }}"
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Package with Qt libs
+        run: |
+          mkdir -p package
+          cp build/QFlyST package/
+
+          # Copy only necessary Qt libraries
+          cp $QT_ROOT_DIR/lib/libQt6Core.so* package/
+          cp $QT_ROOT_DIR/lib/libQt6Gui.so* package/
+          cp $QT_ROOT_DIR/lib/libQt6Widgets.so* package/
+          cp $QT_ROOT_DIR/lib/libQt6Network.so* package/
+          cp $QT_ROOT_DIR/lib/libQt6SerialPort.so* package/ 2>/dev/null || true
+          cp $QT_ROOT_DIR/lib/libQt6DBus.so* package/ 2>/dev/null || true
+          cp $QT_ROOT_DIR/lib/libicu*.so* package/ 2>/dev/null || true
+
+          # Copy platforms plugin
+          mkdir -p package/platforms
+          cp $QT_ROOT_DIR/plugins/platforms/*.so package/platforms/
+
+          cd package
+          tar -czvf ../QFlyST-linux-x64.tar.gz .
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: QFlyST-linux-x64
+          path: QFlyST-linux-x64.tar.gz
+
+  build-linux-arm64:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt6
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qt6-base-dev qt6-base-dev-tools qt6-serialport-dev cmake build-essential
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Find Qt libraries
+        run: |
+          echo "Searching for Qt libraries..."
+          find /usr -name "libQt6*.so*" 2>/dev/null | head -20
+          find /usr -name "libQt6SerialPort*.so*" 2>/dev/null
+          echo "Searching for platforms plugin..."
+          find /usr -name "libqxcb.so" 2>/dev/null
+          echo "Qt6 dir:"
+          dpkg -L qt6-base-dev | grep -E "\.so|plugins" | head -20
+
+      - name: Package with Qt libs
+        run: |
+          mkdir -p package
+          cp build/QFlyST package/
+
+          # Copy Qt libraries
+          QT_LIBS=$(find /usr -name "libQt6Core.so*" -type f 2>/dev/null | head -1 | xargs dirname)
+          echo "Qt libs directory: $QT_LIBS"
+
+          if [ -d "$QT_LIBS" ]; then
+            cp $QT_LIBS/libQt6Core.so* package/
+            cp $QT_LIBS/libQt6Gui.so* package/
+            cp $QT_LIBS/libQt6Widgets.so* package/
+            cp $QT_LIBS/libQt6Network.so* package/
+            cp $QT_LIBS/libQt6SerialPort.so* package/ 2>/dev/null || true
+            cp $QT_LIBS/libQt6DBus.so* package/ 2>/dev/null || true
+            cp $QT_LIBS/libicu*.so* package/ 2>/dev/null || true
+          fi
+
+          # Copy platforms plugin
+          QT_PLUGINS=$(find /usr -name "libqxcb.so" -type f 2>/dev/null | head -1 | xargs dirname)
+          echo "Qt platforms directory: $QT_PLUGINS"
+
+          if [ -d "$QT_PLUGINS" ]; then
+            mkdir -p package/platforms
+            cp $QT_PLUGINS/*.so package/platforms/
+          fi
+
+          ls -lh package/
+          cd package
+          tar -czvf ../QFlyST-linux-arm64.tar.gz .
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: QFlyST-linux-arm64
+          path: QFlyST-linux-arm64.tar.gz
+
+  release:
+    needs: [build-windows, build-macos-arm64, build-linux-x64, build-linux-arm64]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/QFlyST-windows-x64/QFlyST-windows-x64.zip
+            artifacts/QFlyST-macos-arm64/QFlyST-macos-arm64.dmg
+            artifacts/QFlyST-linux-x64/QFlyST-linux-x64.tar.gz
+            artifacts/QFlyST-linux-arm64/QFlyST-linux-arm64.tar.gz
+          body: |
+            ## QFlyST v${{ github.ref_name }}
+
+            STM32在线编程工具 - 跨平台串口烧录软件
+
+            ### 下载说明
+
+            | 平台 | 文件 | 说明 |
+            |------|------|------|
+            | Windows x64 | QFlyST-windows-x64.zip | Windows 64位，解压后运行 QFlyST.exe |
+            | macOS ARM64 | QFlyST-macos-arm64.dmg | M1/M2/M3/M4芯片 Mac |
+            | Linux x64 | QFlyST-linux-x64.tar.gz | Linux 64位，解压后运行 |
+            | Linux ARM64 | QFlyST-linux-arm64.tar.gz | 树莓派等ARM设备 |
+
+            ### 使用方法
+
+            **Windows**: 解压后运行 QFlyST.exe
+
+            **macOS**: 双击 dmg 安装，首次运行如提示"已损坏"，请在终端执行：
+            ```bash
+            sudo xattr -cr /Applications/QFlyST.app
+            ```
+
+            **Linux**: 解压后运行 `./QFlyST`
+
+            ### 功能特点
+
+            - 支持 STM32 内置 Bootloader 串口烧录
+            - 支持 Intel HEX 和 BIN 格式固件
+            - 自动进入 Bootloader 模式 (RTS/DTR 控制)
+            - 支持擦除、烧录、校验、读器件信息
+            - 读取芯片唯一序列号(96位UID)
+            - 配置持久化保存
+            - 实时进度显示
