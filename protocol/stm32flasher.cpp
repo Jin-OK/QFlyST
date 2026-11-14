@@ -61,7 +61,7 @@ bool Stm32Flasher::receiveByte(uint8_t *byte)
 
     while (timer.elapsed() < 2000) {  // 总超时2秒
         // 检查停止标志
-        if (m_stopFlag && *m_stopFlag == false) {
+        if (m_stopFlag && *m_stopFlag == true) {
             m_lastError = "用户取消";
             return false;
         }
@@ -144,7 +144,7 @@ bool Stm32Flasher::initConnection(bool *stopFlag)
     // 发送同步字节 0x7F，最多尝试5次
     for (int retry = 0; retry < 5; ++retry) {
         // 检查停止标志 (false表示停止)
-        if (m_stopFlag && *m_stopFlag == false) {
+        if (m_stopFlag && *m_stopFlag == true) {
             m_lastError = "用户取消";
             return false;
         }
@@ -152,7 +152,7 @@ bool Stm32Flasher::initConnection(bool *stopFlag)
         if (retry > 0) {
             // 使用循环代替长sleep，保持UI响应
             for (int i = 0; i < 20; ++i) {
-                if (m_stopFlag && *m_stopFlag == false) {
+                if (m_stopFlag && *m_stopFlag == true) {
                     m_lastError = "用户取消";
                     return false;
                 }
@@ -172,7 +172,7 @@ bool Stm32Flasher::initConnection(bool *stopFlag)
 
         while (timer.elapsed() < 500) {  // 每次尝试最多等待500ms
             // 检查停止标志
-            if (m_stopFlag && *m_stopFlag == false) {
+            if (m_stopFlag && *m_stopFlag == true) {
                 m_lastError = "用户取消";
                 return false;
             }
@@ -599,7 +599,7 @@ bool Stm32Flasher::writeFirmwareWithProgress(const QByteArray &data, quint32 sta
 
     while (writtenBytes < totalBytes) {
         // 检查停止标志
-        if (m_stopFlag && *m_stopFlag == false) {
+        if (m_stopFlag && *m_stopFlag == true) {
             m_lastError = "用户取消";
             return false;
         }
@@ -718,8 +718,8 @@ bool Stm32Flasher::readFirmwareWithProgress(QByteArray &data, quint32 startAddre
     quint32 readBytes = 0;
 
     while (readBytes < length) {
-        // 检查停止标志
-        if (m_stopFlag && *m_stopFlag == false) {
+        // 检查停止标志 (true 表示停止)
+        if (m_stopFlag && *m_stopFlag == true) {
             m_lastError = "用户取消";
             return false;
         }
@@ -758,8 +758,8 @@ bool Stm32Flasher::readFirmwareWithProgress(QByteArray &data, quint32 startAddre
         // 读取数据字节 - 使用 receiveByte() 确保从缓冲区读取
         QByteArray chunk;
         for (int i = 0; i < bytesToRead; ++i) {
-            // 检查停止标志
-            if (m_stopFlag && *m_stopFlag == false) {
+            // 检查停止标志 (true 表示停止)
+            if (m_stopFlag && *m_stopFlag == true) {
                 m_lastError = "用户取消";
                 return false;
             }

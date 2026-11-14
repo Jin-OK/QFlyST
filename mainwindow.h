@@ -59,6 +59,7 @@ private:
     void setProgramButtonToStart();
     void loadSettings();
     void saveSettings();
+    bool saveAsHex(const QByteArray &data, quint32 startAddress, const QString &filePath);
 
     Ui::MainWindow *ui;
 

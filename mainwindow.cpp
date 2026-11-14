@@ -7,6 +7,7 @@
 #include <QComboBox>
 #include <QElapsedTimer>
 #include <QFileInfo>
+#include <QInputDialog>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -666,21 +667,245 @@ void MainWindow::onReadFlashClicked()
         return;
     }
 
+    // 获取读取起始地址
+    QString addrText = ui->editStartAddress->text().trimmed();
+    if (addrText.startsWith("0x", Qt::CaseInsensitive)) {
+        addrText = addrText.mid(2);
+    }
+    bool ok;
+    quint32 startAddr = addrText.toUInt(&ok, 16);
+    if (!ok) {
+        log("无效的起始地址格式");
+        return;
+    }
+
+    // 弹出对话框询问读取长度
+    QStringList items;
+    items << "0x1000 (4KB)" << "0x4000 (16KB)" << "0x8000 (32KB)" << "0x10000 (64KB)"
+          << "0x20000 (128KB)" << "0x40000 (256KB)" << "自定义";
+
+    QString item = QInputDialog::getItem(this, "读取FLASH",
+        "选择读取长度:", items, 5, false, &ok);
+    if (!ok || item.isEmpty()) {
+        return;
+    }
+
+    quint32 readLength;
+    if (item == "自定义") {
+        QString lengthText = QInputDialog::getText(this, "读取FLASH",
+            "请输入读取长度 (十六进制):", QLineEdit::Normal, "0x1000", &ok);
+        if (!ok || lengthText.isEmpty()) {
+            return;
+        }
+        if (lengthText.startsWith("0x", Qt::CaseInsensitive)) {
+            lengthText = lengthText.mid(2);
+        }
+        readLength = lengthText.toUInt(&ok, 16);
+    } else {
+        // 从选项解析长度
+        QString hexStr = item.split(" ")[0];
+        readLength = hexStr.toUInt(&ok, 16);
+    }
+
+    if (!ok || readLength == 0) {
+        log("无效的读取长度");
+        return;
+    }
+
+    // 选择保存文件路径
+    QString savePath = QFileDialog::getSaveFileName(
+        this,
+        "保存Flash内容",
+        QString(),
+        "BIN文件 (*.bin);;HEX文件 (*.hex);;所有文件 (*.*)"
+    );
+
+    if (savePath.isEmpty()) {
+        return;
+    }
+
     // 连接串口
     if (!m_isConnected) {
         qint32 baudRate = ui->cbBaudRate->currentText().toInt();
         if (baudRate <= 0) baudRate = 115200;
 
+        log(QString("连接 %1...").arg(portName));
         if (!m_serialManager->open(portName, baudRate)) {
             log("打开串口失败");
             return;
         }
     }
 
-    log("读取FLASH功能暂未实现");
+    // 创建烧录器
+    if (!m_flasher) {
+        m_flasher = new Stm32Flasher(m_serialManager, this);
+        connect(m_flasher, &Stm32Flasher::progressChanged, this, &MainWindow::onProgressChanged);
+        connect(m_flasher, &Stm32Flasher::statusChanged, this, &MainWindow::onStatusChanged);
+        connect(m_flasher, &Stm32Flasher::logMessage, this, &MainWindow::onLogMessage);
+    }
+
+    // 清除日志
+    ui->logView->clear();
+
+    log("========== 开始读取FLASH ==========");
+    log(QString("起始地址: 0x%1 | 读取长度: %2 字节")
+        .arg(startAddr, 8, 16, QChar('0'))
+        .arg(readLength));
+    setStatus("正在读取...");
+    onProgressChanged(0);
+
+    // 设置停止标志
+    bool stopFlag = false;
+    m_flasher->setStopFlag(&stopFlag);
+
+    // 进入 Bootloader 模式
+    SerialManager::BootMode mode = static_cast<SerialManager::BootMode>(ui->cbBootMode->currentIndex());
+    if (!m_serialManager->enterBootloader()) {
+        log("进入 Bootloader 失败");
+        m_serialManager->close();
+        setStatus("读取失败");
+        return;
+    }
+
+    // 等待
+    for (int i = 0; i < 10; ++i) {
+        QThread::msleep(20);
+        QApplication::processEvents();
+    }
+
+    // 初始化连接
+    if (!m_flasher->initConnection(&stopFlag)) {
+        log("Bootloader 初始化失败: " + m_flasher->lastError());
+        m_serialManager->close();
+        setStatus("读取失败");
+        return;
+    }
+
+    // 读取Flash
+    QByteArray flashData;
+    if (!m_flasher->readFirmwareWithProgress(flashData, startAddr, readLength, 0, 100, this)) {
+        log("读取失败: " + m_flasher->lastError());
+        m_serialManager->close();
+        setStatus("读取失败");
+        return;
+    }
+
+    onProgressChanged(100);
+    log(QString("读取完成，共 %1 字节").arg(flashData.size()));
+
+    // 保存文件
+    QFile file(savePath);
+    if (!file.open(QIODevice::WriteOnly)) {
+        log("无法打开文件: " + savePath);
+        m_serialManager->close();
+        setStatus("保存失败");
+        return;
+    }
+
+    // 判断保存格式
+    if (savePath.endsWith(".hex", Qt::CaseInsensitive)) {
+        // 保存为HEX格式
+        file.close();
+        if (!saveAsHex(flashData, startAddr, savePath)) {
+            log("保存HEX文件失败");
+            m_serialManager->close();
+            setStatus("保存失败");
+            return;
+        }
+    } else {
+        // 保存为BIN格式
+        file.write(flashData);
+        file.close();
+    }
+
+    log("已保存到: " + savePath);
+    setStatus("读取完成");
 
     // 关闭串口
     m_serialManager->close();
+    log("========== 读取结束 ==========");
+}
+
+// 保存为Intel HEX格式
+bool MainWindow::saveAsHex(const QByteArray &data, quint32 startAddress, const QString &filePath)
+{
+    QFile file(filePath);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        return false;
+    }
+
+    QTextStream out(&file);
+    quint32 address = startAddress;
+    int offset = 0;
+    const int bytesPerLine = 16;
+
+    while (offset < data.size()) {
+        // 检查是否需要扩展地址记录
+        if ((address & 0xFFFF0000) != 0 && (offset % 0x10000 == 0)) {
+            // 写入扩展线性地址记录
+            uint16_t upperAddr = (address >> 16) & 0xFFFF;
+            QByteArray extRecord;
+            extRecord.append(static_cast<char>(0x02));  // 长度
+            extRecord.append(static_cast<char>(0x00));
+            extRecord.append(static_cast<char>(0x00));
+            extRecord.append(static_cast<char>(0x04));  // 扩展线性地址记录类型
+            extRecord.append(static_cast<char>((upperAddr >> 8) & 0xFF));
+            extRecord.append(static_cast<char>(upperAddr & 0xFF));
+
+            // 计算校验和
+            uint8_t checksum = 0;
+            for (int i = 0; i < extRecord.size(); ++i) {
+                checksum += static_cast<uint8_t>(extRecord[i]);
+            }
+            checksum = (0x100 - checksum) & 0xFF;
+            extRecord.append(static_cast<char>(checksum));
+
+            // 写入记录
+            out << ":";
+            for (int i = 0; i < extRecord.size(); ++i) {
+                out << QString("%1").arg(static_cast<uint8_t>(extRecord[i]), 2, 16, QChar('0')).toUpper();
+            }
+            out << "\n";
+        }
+
+        // 计算本行字节数
+        int lineBytes = qMin(bytesPerLine, data.size() - offset);
+
+        // 写入数据记录
+        QByteArray record;
+        record.append(static_cast<char>(lineBytes));  // 长度
+        record.append(static_cast<char>((address >> 8) & 0xFF));  // 地址高位
+        record.append(static_cast<char>(address & 0xFF));  // 地址低位
+        record.append(static_cast<char>(0x00));  // 记录类型 (数据)
+
+        for (int i = 0; i < lineBytes; ++i) {
+            record.append(static_cast<char>(data[offset + i]));
+        }
+
+        // 计算校验和
+        uint8_t checksum = 0;
+        for (int i = 0; i < record.size(); ++i) {
+            checksum += static_cast<uint8_t>(record[i]);
+        }
+        checksum = (0x100 - checksum) & 0xFF;
+        record.append(static_cast<char>(checksum));
+
+        // 写入记录
+        out << ":";
+        for (int i = 0; i < record.size(); ++i) {
+            out << QString("%1").arg(static_cast<uint8_t>(record[i]), 2, 16, QChar('0')).toUpper();
+        }
+        out << "\n";
+
+        offset += lineBytes;
+        address += lineBytes;
+    }
+
+    // 写入EOF记录
+    out << ":00000001FF\n";
+
+    file.close();
+    return true;
 }
 
 void MainWindow::onSerialConnected()

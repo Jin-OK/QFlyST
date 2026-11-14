@@ -71,6 +71,10 @@ public:
     // 设置进度条
     void setProgressbar(QProgressBar *bar) { m_progressBar = bar; }
 
+    // 设置停止标志
+    void setStopFlag(bool *flag) { m_stopFlag = flag; }
+    bool *stopFlag() const { return m_stopFlag; }
+
 signals:
     void progressChanged(int percent);
     void statusChanged(const QString &status);
