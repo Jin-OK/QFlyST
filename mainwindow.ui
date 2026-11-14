@@ -12,7 +12,7 @@
   </property>
   <property name="minimumSize">
    <size>
-    <width>600</width>
+    <width>700</width>
     <height>400</height>
    </size>
   </property>
@@ -120,13 +120,13 @@
      <widget class="QWidget" name="leftPanel" native="true">
       <property name="minimumSize">
        <size>
-        <width>260</width>
+        <width>300</width>
         <height>0</height>
        </size>
       </property>
       <property name="maximumSize">
        <size>
-        <width>280</width>
+        <width>320</width>
         <height>16777215</height>
        </size>
       </property>
@@ -483,7 +483,7 @@
         </property>
         <property name="minimumSize">
          <size>
-          <width>300</width>
+          <width>350</width>
           <height>0</height>
          </size>
         </property>
