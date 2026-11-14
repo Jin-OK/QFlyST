@@ -6,6 +6,7 @@
 #include <QSettings>
 #include <QComboBox>
 #include <QElapsedTimer>
+#include <QFileInfo>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -213,6 +214,15 @@ void MainWindow::loadFirmware()
 {
     QString filePath = ui->editFirmwarePath->text();
     if (filePath.isEmpty()) {
+        return;
+    }
+
+    // 检查文件是否存在（启动时可能文件已被删除）
+    QFileInfo fileInfo(filePath);
+    if (!fileInfo.exists()) {
+        log(QString("固件文件不存在: %1").arg(filePath));
+        // 清空路径，避免下次启动时再次尝试
+        m_firmwarePath.clear();
         return;
     }
 
@@ -750,6 +760,17 @@ void MainWindow::loadSettings()
     // 先加载手动地址选项（影响 loadFirmware 的行为）
     if (settings.contains("manualAddress")) {
         ui->chkManualAddress->setChecked(settings.value("manualAddress").toBool());
+    }
+
+    // 加载固件起始地址（在 loadFirmware 之前，这样用户可以覆盖）
+    if (settings.contains("startAddress")) {
+        QString addr = settings.value("startAddress").toString();
+        ui->editStartAddress->setText(addr);
+        bool ok;
+        quint32 addrValue = addr.toUInt(&ok, 16);
+        if (ok) {
+            m_firmwareStartAddr = addrValue;
+        }
     }
 
     // 加载固件路径 - 如果有记忆，自动加载固件
