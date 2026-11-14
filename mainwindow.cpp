@@ -61,13 +61,13 @@ void MainWindow::setupUI()
     m_progressBar->setValue(0);
     m_progressBar->setTextVisible(true);
     m_progressBar->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);  // 可拉伸
-    ui->statusbar->addWidget(m_progressBar, 1);  // stretch = 1
+    ui->statusbar->addWidget(m_progressBar, 10);  // stretch = 10，更大的拉伸因子
 
     // 状态栏添加状态标签 (在最右边，固定宽度)
     QLabel *statusLabel = new QLabel(this);
     statusLabel->setText("就绪");
     statusLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-    statusLabel->setMinimumWidth(150);  // 设置最小宽度
+    statusLabel->setMinimumWidth(100);  // 设置最小宽度
     ui->statusbar->addWidget(statusLabel);
 
     // 设置开始烧录按钮为浅蓝色
