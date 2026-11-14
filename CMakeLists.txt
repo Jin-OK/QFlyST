@@ -1,13 +1,19 @@
-cmake_minimum_required(VERSION 3.19)
+cmake_minimum_required(VERSION 3.16)
 project(QFlyST LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_AUTORCC ON)
+set(CMAKE_AUTOUIC ON)
+set(CMAKE_AUTOMOC ON)
+
+if(APPLE)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Minimum macOS version" FORCE)
+endif()
 
 find_package(Qt6 6.4 REQUIRED COMPONENTS Core Widgets SerialPort)
 
-qt_standard_project_setup()
-
-qt_add_executable(QFlyST
-    WIN32
-    MACOSX_BUNDLE
+add_executable(QFlyST
     main.cpp
     mainwindow.cpp
     mainwindow.h
@@ -20,22 +26,15 @@ qt_add_executable(QFlyST
     utils/hexparser.cpp
 )
 
+if(WIN32)
+    set_target_properties(QFlyST PROPERTIES WIN32_EXECUTABLE TRUE)
+elseif(APPLE)
+    set_target_properties(QFlyST PROPERTIES MACOSX_BUNDLE TRUE)
+endif()
+
 target_link_libraries(QFlyST
     PRIVATE
-        Qt::Core
-        Qt::Widgets
-        Qt::SerialPort
+        Qt6::Core
+        Qt6::Widgets
+        Qt6::SerialPort
 )
-
-install(TARGETS QFlyST
-    BUNDLE  DESTINATION .
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-)
-
-qt_generate_deploy_app_script(
-    TARGET QFlyST
-    OUTPUT_SCRIPT deploy_script
-    NO_UNSUPPORTED_PLATFORM_ERROR
-)
-install(SCRIPT ${deploy_script})
