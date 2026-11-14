@@ -138,14 +138,27 @@ void MainWindow::setupConnections()
     // 固件起始地址输入 - 当编辑框失去焦点或按下回车时更新地址
     connect(ui->editStartAddress, &QLineEdit::editingFinished, this, [this]() {
         QString addr = ui->editStartAddress->text().trimmed();
+        // 去除 0x 前缀再解析
+        if (addr.startsWith("0x", Qt::CaseInsensitive)) {
+            addr = addr.mid(2);
+        }
         bool ok;
         quint32 addrValue = addr.toUInt(&ok, 16);
         if (ok) {
             m_firmwareStartAddr = addrValue;
             log(QString("固件起始地址设置为: 0x%1").arg(m_firmwareStartAddr, 8, 16, QChar('0')));
+            // 更新显示格式
+            ui->editStartAddress->setText(QString("0x%1").arg(m_firmwareStartAddr, 8, 16, QChar('0')));
         } else {
             log("无效的固件起始地址格式");
-            ui->editStartAddress->setText(QString("%1").arg(m_firmwareStartAddr, 8, 16, QChar('0')));
+            ui->editStartAddress->setText(QString("0x%1").arg(m_firmwareStartAddr, 8, 16, QChar('0')));
+        }
+    });
+
+    // 手动指定地址复选框 - 切换时重新加载固件以更新地址栏状态
+    connect(ui->chkManualAddress, &QCheckBox::toggled, this, [this]() {
+        if (!m_firmwarePath.isEmpty()) {
+            loadFirmware();
         }
     });
 
@@ -214,20 +227,34 @@ void MainWindow::loadFirmware()
     m_firmwarePath = filePath;
     m_firmwareData = result.data;
 
-    // 使用UI中的起始地址，如果是BIN文件且地址未修改，使用默认地址
-    QString addrText = ui->editStartAddress->text().trimmed();
-    bool ok;
-    quint32 addrValue = addrText.toUInt(&ok, 16);
-    if (ok) {
-        m_firmwareStartAddr = addrValue;
-    } else if (m_firmwarePath.endsWith(".bin", Qt::CaseInsensitive)) {
-        // 对于 BIN 文件，默认使用 STM32 Flash 起始地址
-        m_firmwareStartAddr = 0x08000000;
-        ui->editStartAddress->setText("08000000");
-    } else {
-        // 对于 HEX 文件，使用文件中的地址
+    // 判断是否为 HEX 文件
+    bool isHexFile = filePath.endsWith(".hex", Qt::CaseInsensitive);
+
+    if (isHexFile && !ui->chkManualAddress->isChecked()) {
+        // HEX 文件：使用文件中的地址，地址栏只读
         m_firmwareStartAddr = result.startAddress;
-        ui->editStartAddress->setText(QString("%1").arg(m_firmwareStartAddr, 8, 16, QChar('0')));
+        ui->editStartAddress->setText(QString("0x%1").arg(m_firmwareStartAddr, 8, 16, QChar('0')));
+        ui->editStartAddress->setReadOnly(true);
+        ui->editStartAddress->setStyleSheet("QLineEdit { background-color: #f0f0f0; color: #666; }");
+        log(QString("HEX文件地址: 0x%1").arg(m_firmwareStartAddr, 8, 16, QChar('0')));
+    } else {
+        // BIN 文件 或 手动指定地址：使用UI中的地址
+        QString addrText = ui->editStartAddress->text().trimmed();
+        // 去除 0x 前缀再解析
+        if (addrText.startsWith("0x", Qt::CaseInsensitive)) {
+            addrText = addrText.mid(2);
+        }
+        bool ok;
+        quint32 addrValue = addrText.toUInt(&ok, 16);
+        if (ok) {
+            m_firmwareStartAddr = addrValue;
+        } else {
+            // BIN 文件默认使用 STM32 Flash 起始地址
+            m_firmwareStartAddr = 0x08000000;
+            ui->editStartAddress->setText("0x08000000");
+        }
+        ui->editStartAddress->setReadOnly(false);
+        ui->editStartAddress->setStyleSheet("");
     }
 
     log(QString("固件大小: %1 字节 | 起始地址: 0x%2")
@@ -764,6 +791,11 @@ void MainWindow::loadSettings()
             m_firmwareStartAddr = addrValue;
         }
     }
+
+    // 加载手动地址选项
+    if (settings.contains("manualAddress")) {
+        ui->chkManualAddress->setChecked(settings.value("manualAddress").toBool());
+    }
 }
 
 void MainWindow::saveSettings()
@@ -787,4 +819,7 @@ void MainWindow::saveSettings()
 
     // 保存固件起始地址
     settings.setValue("startAddress", ui->editStartAddress->text());
+
+    // 保存手动地址选项
+    settings.setValue("manualAddress", ui->chkManualAddress->isChecked());
 }
