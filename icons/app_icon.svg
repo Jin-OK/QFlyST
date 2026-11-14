@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <rect width="64" height="64" rx="8" fill="#1e3c72"/>
+  <rect x="16" y="16" width="32" height="32" rx="4" fill="#00d2ff"/>
+  <text x="32" y="30" font-family="Arial" font-size="8" font-weight="bold" fill="#fff" text-anchor="middle">STM32</text>
+  <text x="32" y="40" font-family="Arial" font-size="6" fill="#fff" text-anchor="middle">FLASH</text>
+  <path d="M 28 44 L 30 44 L 29 48 L 33 48 L 27 54 L 30 50 L 26 50 Z" fill="#ffcc00"/>
+</svg>

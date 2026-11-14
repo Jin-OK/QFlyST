@@ -3,6 +3,7 @@
 #include <QApplication>
 #include <QAction>
 #include <QMessageBox>
+#include <QIcon>
 
 int main(int argc, char *argv[])
 {
@@ -12,6 +13,9 @@ int main(int argc, char *argv[])
     a.setApplicationName("QFlyST");
     a.setApplicationVersion("1.0");
     a.setOrganizationName("QFlyST");
+
+    // 设置应用程序图标
+    a.setWindowIcon(QIcon(":/icons/app_icon.svg"));
 
     MainWindow w;
 

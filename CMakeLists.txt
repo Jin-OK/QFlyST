@@ -24,6 +24,7 @@ add_executable(QFlyST
     protocol/stm32flasher.cpp
     utils/hexparser.h
     utils/hexparser.cpp
+    resources.qrc
 )
 
 if(WIN32)
