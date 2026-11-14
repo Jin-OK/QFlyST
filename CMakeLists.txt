@@ -29,8 +29,17 @@ add_executable(QFlyST
 
 if(WIN32)
     set_target_properties(QFlyST PROPERTIES WIN32_EXECUTABLE TRUE)
+    # Windows ICO图标
+    target_sources(QFlyST PRIVATE resources.rc)
 elseif(APPLE)
     set_target_properties(QFlyST PROPERTIES MACOSX_BUNDLE TRUE)
+    # macOS ICNS图标
+    set(MACOSX_ICON ${CMAKE_CURRENT_SOURCE_DIR}/icons/app_icon.icns)
+    if(EXISTS ${MACOSX_ICON})
+        set_source_files_properties(${MACOSX_ICON} PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
+        target_sources(QFlyST PRIVATE ${MACOSX_ICON})
+        set_target_properties(QFlyST PROPERTIES MACOSX_BUNDLE_ICON_FILE "app_icon.icns")
+    endif()
 endif()
 
 target_link_libraries(QFlyST
