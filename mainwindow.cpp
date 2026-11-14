@@ -54,7 +54,7 @@ MainWindow::~MainWindow()
 void MainWindow::setupUI()
 {
     setWindowTitle("QFlyST V1.0 - STM32在线编程工具");
-    resize(800, 550);
+    resize(800, 600);
 
     // 状态栏添加进度条 (可拉伸)
     m_progressBar = new QProgressBar(this);
