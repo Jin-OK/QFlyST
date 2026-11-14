@@ -29,8 +29,10 @@ add_executable(QFlyST
 
 if(WIN32)
     set_target_properties(QFlyST PROPERTIES WIN32_EXECUTABLE TRUE)
-    # Windows ICO图标
-    target_sources(QFlyST PRIVATE resources.rc)
+    # Windows ICO图标 (仅MSVC，因为需要动态生成ICO)
+    if(MSVC)
+        target_sources(QFlyST PRIVATE resources.rc)
+    endif()
 elseif(APPLE)
     set_target_properties(QFlyST PROPERTIES MACOSX_BUNDLE TRUE)
     # macOS ICNS图标
