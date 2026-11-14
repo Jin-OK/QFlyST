@@ -23,13 +23,20 @@ public:
         START_LINEAR_ADDR_RECORD = 0x05 // 起始线性地址
     };
 
+    // 数据段结构
+    struct Segment {
+        quint32 startAddress;  // 段起始地址
+        QByteArray data;       // 段数据
+    };
+
     // 解析结果
     struct ParseResult {
         bool success;
         QString error;
-        QByteArray data;
-        quint32 startAddress;
-        quint32 endAddress;
+        QByteArray data;           // 所有数据合并（用于向后兼容）
+        quint32 startAddress;      // 第一个段的起始地址
+        quint32 endAddress;        // 最后一个段的结束地址
+        QList<Segment> segments;   // 所有数据段
     };
 
     HexParser();
@@ -48,7 +55,7 @@ public:
 
 private:
     // 解析单行 HEX 记录
-    bool parseLine(const QString &line, QByteArray &data, quint32 &baseAddress, quint32 &startAddr);
+    bool parseLine(const QString &line, QList<Segment> &segments, quint32 &baseAddress);
 
     // 计算校验和
     uint8_t calcChecksum(const QByteArray &record);

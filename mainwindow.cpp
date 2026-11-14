@@ -409,8 +409,24 @@ void MainWindow::startProgramming()
     onProgressChanged(20);
 
     // 5. 写入固件 (20-70%)
-    if (!m_flasher->writeFirmwareWithProgress(m_firmwareData, m_firmwareStartAddr, 20, 70, this)) {
-        log("写入失败");
+    // 使用多段烧录
+    int totalSize = m_firmwareData.size();
+    int writtenSize = 0;
+    bool writeSuccess = true;
+
+    for (const HexParser::Segment &seg : HexParser::loadFirmware(m_firmwarePath).segments) {
+        int progressStart = 20 + (writtenSize * 50) / totalSize;
+        int progressEnd = 20 + ((writtenSize + seg.data.size()) * 50) / totalSize;
+
+        if (!m_flasher->writeFirmwareWithProgress(seg.data, seg.startAddress, progressStart, progressEnd, this)) {
+            log("写入失败");
+            writeSuccess = false;
+            break;
+        }
+        writtenSize += seg.data.size();
+    }
+
+    if (!writeSuccess) {
         stopProgramming();
         return;
     }
@@ -420,22 +436,39 @@ void MainWindow::startProgramming()
     bool verifyPassed = false;
     if (m_verifyEnabled) {
         log("开始校验...");
-        QByteArray readData;
-        if (!m_flasher->readFirmwareWithProgress(readData, m_firmwareStartAddr, m_firmwareData.size(), 70, 100, this)) {
-            log("校验失败：读取数据错误");
-        } else if (readData != m_firmwareData) {
-            log("校验失败！数据不匹配");
-        } else {
+        HexParser::ParseResult verifyResult = HexParser::loadFirmware(m_firmwarePath);
+        bool allMatch = true;
+
+        for (const HexParser::Segment &seg : verifyResult.segments) {
+            QByteArray readData;
+            if (!m_flasher->readFirmware(readData, seg.startAddress, seg.data.size())) {
+                log("校验失败：读取数据错误");
+                allMatch = false;
+                break;
+            }
+            if (readData != seg.data) {
+                log(QString("校验失败！数据不匹配 (地址 0x%1)").arg(seg.startAddress, 8, 16, QChar('0')));
+                allMatch = false;
+                break;
+            }
+        }
+
+        if (allMatch) {
             log("校验成功");
             verifyPassed = true;
         }
-    } else {
-        onProgressChanged(100);
     }
+    onProgressChanged(100);
 
     // 7. 执行代码（如果启用）
     if (m_runAfterEnabled) {
-        if (!m_flasher->execute(m_firmwareStartAddr)) {
+        // 使用第一个段的起始地址作为执行地址
+        quint32 execAddr = m_firmwareStartAddr;
+        HexParser::ParseResult execResult = HexParser::loadFirmware(m_firmwarePath);
+        if (!execResult.segments.isEmpty()) {
+            execAddr = execResult.segments.first().startAddress;
+        }
+        if (!m_flasher->execute(execAddr)) {
             log("执行代码失败");
         }
     }
