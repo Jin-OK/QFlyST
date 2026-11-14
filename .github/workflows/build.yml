@@ -91,7 +91,7 @@ jobs:
           path: build/QFlyST-macos-arm64.dmg
 
   build-linux-x64:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -224,14 +224,12 @@ jobs:
           body: |
             ## QFlyST v${{ github.ref_name }}
 
-            STM32在线编程工具 - 跨平台串口烧录软件
-
             ### 下载说明
 
             | 平台 | 文件 | 说明 |
             |------|------|------|
             | Windows x64 | QFlyST-windows-x64.zip | Windows 64位，解压后运行 QFlyST.exe |
-            | macOS ARM64 | QFlyST-macos-arm64.dmg | M1/M2/M3/M4芯片 Mac |
+            | macOS ARM64 | QFlyST-macos-arm64.dmg | M1/M2/M3芯片 Mac |
             | Linux x64 | QFlyST-linux-x64.tar.gz | Linux 64位，解压后运行 |
             | Linux ARM64 | QFlyST-linux-arm64.tar.gz | 树莓派等ARM设备 |
 
@@ -245,13 +243,3 @@ jobs:
             ```
 
             **Linux**: 解压后运行 `./QFlyST`
-
-            ### 功能特点
-
-            - 支持 STM32 内置 Bootloader 串口烧录
-            - 支持 Intel HEX 和 BIN 格式固件
-            - 自动进入 Bootloader 模式 (RTS/DTR 控制)
-            - 支持擦除、烧录、校验、读器件信息
-            - 读取芯片唯一序列号(96位UID)
-            - 配置持久化保存
-            - 实时进度显示

@@ -6,6 +6,7 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets SerialPort)
 qt_standard_project_setup()
 
 qt_add_executable(QFlyST
+    WIN32
     MACOSX_BUNDLE
     main.cpp
     mainwindow.cpp
