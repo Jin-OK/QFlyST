@@ -747,9 +747,19 @@ void MainWindow::loadSettings()
 {
     QSettings settings("QFlyST", "QFlyST");
 
-    // 加载固件路径
+    // 先加载手动地址选项（影响 loadFirmware 的行为）
+    if (settings.contains("manualAddress")) {
+        ui->chkManualAddress->setChecked(settings.value("manualAddress").toBool());
+    }
+
+    // 加载固件路径 - 如果有记忆，自动加载固件
     if (settings.contains("lastFirmware")) {
-        ui->editFirmwarePath->setText(settings.value("lastFirmware").toString());
+        QString firmwarePath = settings.value("lastFirmware").toString();
+        if (!firmwarePath.isEmpty()) {
+            ui->editFirmwarePath->setText(firmwarePath);
+            // 自动加载固件以解析地址
+            loadFirmware();
+        }
     }
 
     // 加载波特率
@@ -779,22 +789,6 @@ void MainWindow::loadSettings()
     if (settings.contains("runAfterEnabled")) {
         m_runAfterEnabled = settings.value("runAfterEnabled").toBool();
         ui->chkRunAfter->setChecked(m_runAfterEnabled);
-    }
-
-    // 加载固件起始地址
-    if (settings.contains("startAddress")) {
-        QString addr = settings.value("startAddress").toString();
-        ui->editStartAddress->setText(addr);
-        bool ok;
-        quint32 addrValue = addr.toUInt(&ok, 16);
-        if (ok) {
-            m_firmwareStartAddr = addrValue;
-        }
-    }
-
-    // 加载手动地址选项
-    if (settings.contains("manualAddress")) {
-        ui->chkManualAddress->setChecked(settings.value("manualAddress").toBool());
     }
 }
 
