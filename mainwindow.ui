@@ -470,8 +470,7 @@
         </property>
         <property name="font">
          <font>
-          <family>Microsoft YaHei,PingFang SC,Hiragino Sans GB,Segoe UI,sans-serif</family>
-          <pointsize>10</pointsize>
+          <pointsize>12</pointsize>
          </font>
         </property>
        </widget>
