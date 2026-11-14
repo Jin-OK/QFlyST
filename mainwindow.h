@@ -81,6 +81,7 @@ private:
 
     // 烧录控制
     bool m_isProgramming;
+    bool m_stopFlag;  // 停止标志 (true = 停止)
     QTimer *m_programTimer;  // 超时定时器
 };
 

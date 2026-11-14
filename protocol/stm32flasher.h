@@ -38,7 +38,7 @@ public:
     explicit Stm32Flasher(SerialManager *serial, QObject *parent = nullptr);
     ~Stm32Flasher();
 
-    // 初始化连接（发送0x7F同步）
+    // 初始化连接（发送0x7F同步），stopFlag=true表示停止
     bool initConnection(bool *stopFlag = nullptr);
 
     // 获取芯片信息

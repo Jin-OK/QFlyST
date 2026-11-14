@@ -21,6 +21,7 @@ MainWindow::MainWindow(QWidget *parent)
     , m_runAfterEnabled(true)
     , m_continuousMode(false)
     , m_isProgramming(false)
+    , m_stopFlag(false)
     , m_programTimer(new QTimer(this))
 {
     ui->setupUi(this);
@@ -333,12 +334,16 @@ void MainWindow::startProgramming()
     }
 
     // 设置烧录状态
-    m_isProgramming = true;  // 先设置为true，后面initConnection会检查
+    m_isProgramming = true;  // 表示正在烧录
+    m_stopFlag = false;  // 清除停止标志
     setProgramButtonToStop();
 
     log("========== 开始编程 ==========");
     setStatus("正在编程...");
     onProgressChanged(0);
+
+    // 设置停止标志
+    m_flasher->setStopFlag(&m_stopFlag);
 
     // 启动60秒超时定时器（原来是30秒）
     m_programTimer->start(60000);
@@ -374,7 +379,7 @@ void MainWindow::startProgramming()
     }
 
     // 2. 初始化连接 (发送 0x7F)
-    if (!m_flasher->initConnection(&m_isProgramming)) {
+    if (!m_flasher->initConnection()) {
         log("Bootloader 初始化失败: " + m_flasher->lastError());
         log("请检查硬件连接和 BOOT0 电平");
         stopProgramming();
@@ -461,6 +466,7 @@ void MainWindow::onStopProgramClicked()
 void MainWindow::stopProgramming()
 {
     m_isProgramming = false;
+    m_stopFlag = true;  // 设置停止标志
     m_programTimer->stop();
     setProgramButtonToStart();
 
@@ -550,6 +556,10 @@ void MainWindow::onReadInfoClicked()
 
     log("读取器件信息...");
 
+    // 设置停止标志
+    m_stopFlag = false;
+    m_flasher->setStopFlag(&m_stopFlag);
+
     // 进入 Bootloader 模式
     if (!m_serialManager->enterBootloader()) {
         log("进入 Bootloader 失败");
@@ -623,6 +633,10 @@ void MainWindow::onEraseChipClicked()
     }
 
     log("擦除芯片...");
+
+    // 设置停止标志
+    m_stopFlag = false;
+    m_flasher->setStopFlag(&m_stopFlag);
 
     // 进入 Bootloader 模式
     if (!m_serialManager->enterBootloader()) {
@@ -755,8 +769,8 @@ void MainWindow::onReadFlashClicked()
     onProgressChanged(0);
 
     // 设置停止标志
-    bool stopFlag = false;
-    m_flasher->setStopFlag(&stopFlag);
+    m_stopFlag = false;
+    m_flasher->setStopFlag(&m_stopFlag);
 
     // 进入 Bootloader 模式
     SerialManager::BootMode mode = static_cast<SerialManager::BootMode>(ui->cbBootMode->currentIndex());
@@ -774,7 +788,7 @@ void MainWindow::onReadFlashClicked()
     }
 
     // 初始化连接
-    if (!m_flasher->initConnection(&stopFlag)) {
+    if (!m_flasher->initConnection()) {
         log("Bootloader 初始化失败: " + m_flasher->lastError());
         m_serialManager->close();
         setStatus("读取失败");
