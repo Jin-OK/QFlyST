@@ -527,6 +527,41 @@ bool Stm32Flasher::eraseChip()
     return success;
 }
 
+bool Stm32Flasher::erasePage(quint32 address)
+{
+    // STM32F1 的 Flash 页大小是 1KB 或 2KB
+    // 但 bootloader 的擦除命令是以页为单位的
+    // 发送擦除命令
+    if (!sendCommand(CMD_ERASE)) {
+        return false;
+    }
+
+    // 对于 STM32F1，擦除命令格式：
+    // N-1 (1字节): 要擦除的页数减1
+    // 页码列表 (N字节): 每个页码1字节
+    // 校验码 (1字节): 所有字节的异或
+
+    // 这里我们擦除1页（从address开始的页）
+    // 页码 = address / page_size，但STM32 bootloader的页码是从0开始的扇区号
+    // 对于大多数STM32F1，扇区大小是1KB
+
+    // 简化处理：假设address已经是页对齐的，计算页码
+    // STM32F103的Flash扇区：0x08000000开始，每扇区1KB (0x400字节)
+    quint32 pageNum = (address - 0x08000000) / 0x400;
+
+    // 限制页码范围
+    if (pageNum > 255) {
+        log("页码超出范围");
+        return false;
+    }
+
+    QByteArray data;
+    data.append(static_cast<char>(0x00));  // N-1 = 0，表示擦除1页
+    data.append(static_cast<char>(pageNum));  // 页码
+    data.append(static_cast<char>(0x00 ^ pageNum));  // 校验码
+    return sendData(data);
+}
+
 bool Stm32Flasher::writeFirmware(const QByteArray &data, quint32 startAddress)
 {
     log("开始写入固件...");

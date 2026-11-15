@@ -400,11 +400,29 @@ void MainWindow::startProgramming()
         .arg(version / 16)
         .arg(version % 16));
 
-    // 4. 擦除芯片 (0-20%)
-    if (!m_flasher->eraseChip()) {
-        log("擦除失败");
-        stopProgramming();
-        return;
+    // 4. 擦除芯片
+    bool fullErase = ui->chkFullErase->isChecked();
+    if (fullErase) {
+        log("全片擦除...");
+        if (!m_flasher->eraseChip()) {
+            log("擦除失败");
+            stopProgramming();
+            return;
+        }
+    } else {
+        // 只擦除固件区域
+        log("擦除固件区域...");
+        // 计算需要擦除的页数
+        int totalPages = (m_firmwareData.size() + 255) / 256;  // 每页256字节
+        // 从起始地址开始擦除
+        quint32 eraseStartAddr = m_firmwareStartAddr;
+        for (int i = 0; i < totalPages; i++) {
+            if (!m_flasher->erasePage(eraseStartAddr + i * 256)) {
+                log(QString("擦除页 %1 失败").arg(i));
+                stopProgramming();
+                return;
+            }
+        }
     }
     onProgressChanged(20);
 
@@ -461,13 +479,14 @@ void MainWindow::startProgramming()
     onProgressChanged(100);
 
     // 7. 执行代码（如果启用）
+    // 使用标准的 GO 命令跳转到指定地址
     if (m_runAfterEnabled) {
-        // 使用第一个段的起始地址作为执行地址
         quint32 execAddr = m_firmwareStartAddr;
         HexParser::ParseResult execResult = HexParser::loadFirmware(m_firmwarePath);
         if (!execResult.segments.isEmpty()) {
             execAddr = execResult.segments.first().startAddress;
         }
+        log(QString("执行地址: 0x%1").arg(execAddr, 8, 16, QChar('0')));
         if (!m_flasher->execute(execAddr)) {
             log("执行代码失败");
         }

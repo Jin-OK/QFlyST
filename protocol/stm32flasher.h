@@ -47,6 +47,9 @@ public:
     // 擦除芯片
     bool eraseChip();
 
+    // 擦除单页
+    bool erasePage(quint32 address);
+
     // 写入固件
     bool writeFirmware(const QByteArray &data, quint32 startAddress = 0x08000000);
 

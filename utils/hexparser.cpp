@@ -171,6 +171,8 @@ bool HexParser::parseLine(const QString &line, QList<Segment> &segments, quint32
 
     case START_SEG_ADDR_RECORD:
     case START_LINEAR_ADDR_RECORD:
+        // 起始地址记录，可选处理
+        // 注意：这些记录指定的是程序入口点，不是烧录地址
         break;
 
     default:

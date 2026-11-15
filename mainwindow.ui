@@ -434,6 +434,16 @@
         </widget>
        </item>
        <item>
+        <widget class="QCheckBox" name="chkFullErase">
+         <property name="text">
+          <string>全片擦除（关闭则只擦除固件区域）</string>
+         </property>
+         <property name="checked">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
         <layout class="QGridLayout" name="actionBtnGrid">
          <property name="horizontalSpacing">
           <number>6</number>
