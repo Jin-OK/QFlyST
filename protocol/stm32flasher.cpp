@@ -268,11 +268,23 @@ bool Stm32Flasher::getChipInfo(uint8_t *version, uint16_t *chipId)
     log(QString("芯片内BootLoader版本号：%1.%2").arg(*version / 16).arg(*version % 16));
     log(QString("芯片PID：%1").arg(*chipId, 8, 16, QChar('0')).toUpper());
 
+    // 读取实际Flash大小（从寄存器）
+    uint16_t actualFlashSize = 0;
+    if (readFlashSize(actualFlashSize)) {
+        log(QString("芯片FLASH容量(寄存器): %1KB").arg(actualFlashSize));
+    }
+
     // 获取并显示芯片详细信息
     QString flashSize, sramSize;
     logChipInfo(*chipId, flashSize, sramSize);
-    log(QString("芯片FLASH容量: %1").arg(flashSize));
-    log(QString("芯片SRAM容量: %1").arg(sramSize));
+
+    // 如果读取到了实际Flash大小，优先使用
+    if (actualFlashSize > 0) {
+        log(QString("芯片SRAM容量: %1").arg(sramSize));
+    } else {
+        log(QString("芯片FLASH容量: %1").arg(flashSize));
+        log(QString("芯片SRAM容量: %1").arg(sramSize));
+    }
 
     // 读取芯片唯一序列号
     QString chipUid;
@@ -529,8 +541,7 @@ bool Stm32Flasher::eraseChip()
 
 bool Stm32Flasher::erasePage(quint32 address)
 {
-    // STM32F1 的 Flash 页大小是 1KB 或 2KB
-    // 但 bootloader 的擦除命令是以页为单位的
+    // STM32F1 High-density (0x0414) Flash 页大小是 2KB
     // 发送擦除命令
     if (!sendCommand(CMD_ERASE)) {
         return false;
@@ -541,13 +552,10 @@ bool Stm32Flasher::erasePage(quint32 address)
     // 页码列表 (N字节): 每个页码1字节
     // 校验码 (1字节): 所有字节的异或
 
-    // 这里我们擦除1页（从address开始的页）
-    // 页码 = address / page_size，但STM32 bootloader的页码是从0开始的扇区号
-    // 对于大多数STM32F1，扇区大小是1KB
-
-    // 简化处理：假设address已经是页对齐的，计算页码
-    // STM32F103的Flash扇区：0x08000000开始，每扇区1KB (0x400字节)
-    quint32 pageNum = (address - 0x08000000) / 0x400;
+    // 计算页码（2KB 页大小）
+    // STM32F103 High-density: 0x08000000开始，每页2KB (0x800字节)
+    const quint32 PAGE_SIZE = 0x800;  // 2KB
+    quint32 pageNum = (address - 0x08000000) / PAGE_SIZE;
 
     // 限制页码范围
     if (pageNum > 255) {
@@ -558,7 +566,8 @@ bool Stm32Flasher::erasePage(quint32 address)
     QByteArray data;
     data.append(static_cast<char>(0x00));  // N-1 = 0，表示擦除1页
     data.append(static_cast<char>(pageNum));  // 页码
-    data.append(static_cast<char>(0x00 ^ pageNum));  // 校验码
+    // 校验码 = (N-1) ^ 页码
+    data.append(static_cast<char>(0x00 ^ pageNum));
     return sendData(data);
 }
 
@@ -672,8 +681,12 @@ bool Stm32Flasher::writeFirmwareWithProgress(const QByteArray &data, quint32 sta
         int percent = progressMin + (writtenBytes * (progressMax - progressMin)) / totalBytes;
         emit progressChanged(percent);
 
-        // 使用短延时，保持UI响应
-        QThread::msleep(1);
+        // 每写入一定数据，重置看门狗定时器
+        if (writtenBytes % 4096 == 0) {
+            emit watchdogReset();
+        }
+
+        // 保持UI响应
         QApplication::processEvents();
     }
 
@@ -895,6 +908,50 @@ bool Stm32Flasher::readChipUID(QString &uid)
     log(QString("[%1]").arg(uid));
     log(QString("[%1]").arg(grouped));
 
+    return true;
+}
+
+bool Stm32Flasher::readFlashSize(uint16_t &flashSizeKB)
+{
+    // STM32F1系列Flash大小寄存器地址: 0x1FFFF7E0 (2字节，小端序)
+    // 值单位是KB
+    const quint32 FLASH_SIZE_ADDR = 0x1FFFF7E0;
+
+    // 发送读命令
+    if (!sendCommand(CMD_READ)) {
+        return false;
+    }
+
+    // 发送起始地址
+    if (!sendAddress(FLASH_SIZE_ADDR)) {
+        return false;
+    }
+
+    // 短暂延时
+    QThread::msleep(5);
+    QApplication::processEvents();
+
+    // 发送读取字节数 N-1 + 校验码(取反)
+    uint8_t nMinus1 = 1;  // 读取2字节，N-1 = 1
+    uint8_t checksum = ~nMinus1;
+    QByteArray cmd;
+    cmd.append(static_cast<char>(nMinus1));
+    cmd.append(static_cast<char>(checksum));
+
+    m_serial->write(cmd);
+
+    if (!receiveAck()) {
+        return false;
+    }
+
+    // 读取2字节
+    uint8_t low, high;
+    if (!receiveByte(&low) || !receiveByte(&high)) {
+        return false;
+    }
+
+    // 小端序：低字节在前
+    flashSizeKB = (static_cast<uint16_t>(high) << 8) | low;
     return true;
 }
 

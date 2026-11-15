@@ -49,9 +49,10 @@ public:
 
     // 直接读取 BIN 文件
     static ParseResult readBinFile(const QString &filePath);
+    static ParseResult readBinFile(const QString &filePath, quint32 startAddress);
 
     // 根据文件扩展名自动选择解析方式
-    static ParseResult loadFirmware(const QString &filePath);
+    static ParseResult loadFirmware(const QString &filePath, quint32 binStartAddress = 0);
 
 private:
     // 解析单行 HEX 记录

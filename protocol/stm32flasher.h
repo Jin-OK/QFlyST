@@ -65,6 +65,9 @@ public:
     // 读取芯片唯一序列号
     bool readChipUID(QString &uid);
 
+    // 读取Flash大小（从寄存器）
+    bool readFlashSize(uint16_t &flashSizeKB);
+
     // 执行代码（跳转到应用程序）
     bool execute(quint32 address = 0x08000000);
 
@@ -82,6 +85,7 @@ signals:
     void progressChanged(int percent);
     void statusChanged(const QString &status);
     void logMessage(const QString &msg);
+    void watchdogReset();  // 重置看门狗定时器
 
 private:
     SerialManager *m_serial;

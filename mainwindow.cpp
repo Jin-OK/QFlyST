@@ -56,7 +56,7 @@ MainWindow::~MainWindow()
 void MainWindow::setupUI()
 {
     setWindowTitle("QFlyST V1.0 - STM32在线编程工具");
-    resize(780, 590);
+    resize(780, 620);
 
     // 状态栏添加进度条 (可拉伸)
     m_progressBar = new QProgressBar(this);
@@ -241,6 +241,18 @@ void MainWindow::loadFirmware()
 
     // 判断是否为 HEX 文件
     bool isHexFile = filePath.endsWith(".hex", Qt::CaseInsensitive);
+    bool isBinFile = filePath.endsWith(".bin", Qt::CaseInsensitive);
+
+    if (isBinFile) {
+        // BIN 文件：自动勾选"手动指定地址"，并不允许取消
+        ui->chkManualAddress->setChecked(true);
+        ui->chkManualAddress->setEnabled(false);
+        ui->chkManualAddress->setToolTip("BIN文件必须指定烧录地址");
+    } else if (isHexFile) {
+        // HEX 文件：允许取消复选框
+        ui->chkManualAddress->setEnabled(true);
+        ui->chkManualAddress->setToolTip("");
+    }
 
     if (isHexFile && !ui->chkManualAddress->isChecked()) {
         // HEX 文件：使用文件中的地址，地址栏只读
@@ -323,6 +335,10 @@ void MainWindow::startProgramming()
         connect(m_flasher, &Stm32Flasher::progressChanged, this, &MainWindow::onProgressChanged);
         connect(m_flasher, &Stm32Flasher::statusChanged, this, &MainWindow::onStatusChanged);
         connect(m_flasher, &Stm32Flasher::logMessage, this, &MainWindow::onLogMessage);
+        // 连接看门狗重置信号
+        connect(m_flasher, &Stm32Flasher::watchdogReset, m_programTimer, [this]() {
+            m_programTimer->start(180000);  // 重置超时定时器
+        });
     }
 
     if (m_firmwareData.isEmpty()) {
@@ -346,7 +362,7 @@ void MainWindow::startProgramming()
     m_flasher->setStopFlag(&m_stopFlag);
 
     // 启动60秒超时定时器（原来是30秒）
-    m_programTimer->start(60000);
+    m_programTimer->start(180000);  // 180秒超时
 
     // 1. 进入 Bootloader 模式
     SerialManager::BootMode mode = static_cast<SerialManager::BootMode>(ui->cbBootMode->currentIndex());
@@ -432,7 +448,8 @@ void MainWindow::startProgramming()
     int writtenSize = 0;
     bool writeSuccess = true;
 
-    for (const HexParser::Segment &seg : HexParser::loadFirmware(m_firmwarePath).segments) {
+    // 对于BIN文件，需要传入用户设置的起始地址
+    for (const HexParser::Segment &seg : HexParser::loadFirmware(m_firmwarePath, m_firmwareStartAddr).segments) {
         int progressStart = 20 + (writtenSize * 50) / totalSize;
         int progressEnd = 20 + ((writtenSize + seg.data.size()) * 50) / totalSize;
 
@@ -454,24 +471,13 @@ void MainWindow::startProgramming()
     bool verifyPassed = false;
     if (m_verifyEnabled) {
         log("开始校验...");
-        HexParser::ParseResult verifyResult = HexParser::loadFirmware(m_firmwarePath);
-        bool allMatch = true;
-
-        for (const HexParser::Segment &seg : verifyResult.segments) {
-            QByteArray readData;
-            if (!m_flasher->readFirmware(readData, seg.startAddress, seg.data.size())) {
-                log("校验失败：读取数据错误");
-                allMatch = false;
-                break;
-            }
-            if (readData != seg.data) {
-                log(QString("校验失败！数据不匹配 (地址 0x%1)").arg(seg.startAddress, 8, 16, QChar('0')));
-                allMatch = false;
-                break;
-            }
-        }
-
-        if (allMatch) {
+        QByteArray readData;
+        // 使用用户设置的起始地址读取
+        if (!m_flasher->readFirmwareWithProgress(readData, m_firmwareStartAddr, m_firmwareData.size(), 70, 100, this)) {
+            log("校验失败：读取数据错误");
+        } else if (readData != m_firmwareData) {
+            log("校验失败！数据不匹配");
+        } else {
             log("校验成功");
             verifyPassed = true;
         }
@@ -479,7 +485,6 @@ void MainWindow::startProgramming()
     onProgressChanged(100);
 
     // 7. 执行代码（如果启用）
-    // 使用标准的 GO 命令跳转到指定地址
     if (m_runAfterEnabled) {
         quint32 execAddr = m_firmwareStartAddr;
         HexParser::ParseResult execResult = HexParser::loadFirmware(m_firmwarePath);
@@ -492,7 +497,6 @@ void MainWindow::startProgramming()
         }
     }
 
-    onProgressChanged(100);
     log("========== 编程完成 ==========");
     setStatus("编程完成");
 
@@ -530,7 +534,7 @@ void MainWindow::stopProgramming()
 
 void MainWindow::onProgramTimeout()
 {
-    log("========== 编程超时 (60秒) ==========");
+    log("========== 编程超时 (120秒) ==========");
     stopProgramming();
 }
 
@@ -745,52 +749,7 @@ void MainWindow::onReadFlashClicked()
         return;
     }
 
-    // 弹出对话框询问读取长度
-    QStringList items;
-    items << "0x1000 (4KB)" << "0x4000 (16KB)" << "0x8000 (32KB)" << "0x10000 (64KB)"
-          << "0x20000 (128KB)" << "0x40000 (256KB)" << "自定义";
-
-    QString item = QInputDialog::getItem(this, "读取FLASH",
-        "选择读取长度:", items, 5, false, &ok);
-    if (!ok || item.isEmpty()) {
-        return;
-    }
-
-    quint32 readLength;
-    if (item == "自定义") {
-        QString lengthText = QInputDialog::getText(this, "读取FLASH",
-            "请输入读取长度 (十六进制):", QLineEdit::Normal, "0x1000", &ok);
-        if (!ok || lengthText.isEmpty()) {
-            return;
-        }
-        if (lengthText.startsWith("0x", Qt::CaseInsensitive)) {
-            lengthText = lengthText.mid(2);
-        }
-        readLength = lengthText.toUInt(&ok, 16);
-    } else {
-        // 从选项解析长度
-        QString hexStr = item.split(" ")[0];
-        readLength = hexStr.toUInt(&ok, 16);
-    }
-
-    if (!ok || readLength == 0) {
-        log("无效的读取长度");
-        return;
-    }
-
-    // 选择保存文件路径
-    QString savePath = QFileDialog::getSaveFileName(
-        this,
-        "保存Flash内容",
-        QString(),
-        "BIN文件 (*.bin);;HEX文件 (*.hex);;所有文件 (*.*)"
-    );
-
-    if (savePath.isEmpty()) {
-        return;
-    }
-
-    // 连接串口
+    // 连接串口（如果未连接）
     if (!m_isConnected) {
         qint32 baudRate = ui->cbBaudRate->currentText().toInt();
         if (baudRate <= 0) baudRate = 115200;
@@ -802,12 +761,71 @@ void MainWindow::onReadFlashClicked()
         }
     }
 
-    // 创建烧录器
+    // 创建烧录器（如果未创建）
     if (!m_flasher) {
         m_flasher = new Stm32Flasher(m_serialManager, this);
         connect(m_flasher, &Stm32Flasher::progressChanged, this, &MainWindow::onProgressChanged);
         connect(m_flasher, &Stm32Flasher::statusChanged, this, &MainWindow::onStatusChanged);
         connect(m_flasher, &Stm32Flasher::logMessage, this, &MainWindow::onLogMessage);
+    }
+
+    // 进入 Bootloader 模式获取芯片信息
+    m_stopFlag = false;
+    m_flasher->setStopFlag(&m_stopFlag);
+
+    if (!m_serialManager->enterBootloader()) {
+        log("进入 Bootloader 失败");
+        m_serialManager->close();
+        return;
+    }
+
+    for (int i = 0; i < 10; ++i) {
+        QThread::msleep(20);
+        QApplication::processEvents();
+    }
+
+    if (!m_flasher->initConnection()) {
+        log("Bootloader 初始化失败");
+        m_serialManager->close();
+        return;
+    }
+
+    // 读取实际Flash大小
+    uint16_t flashSizeKB = 0;
+    if (!m_flasher->readFlashSize(flashSizeKB) || flashSizeKB == 0) {
+        log("无法读取Flash大小，请手动输入");
+        // 使用默认值
+        flashSizeKB = 256;
+    }
+
+    // 计算从起始地址到Flash末尾的长度
+    quint32 flashEnd = 0x08000000 + flashSizeKB * 1024;
+    quint32 readLength = flashEnd - startAddr;
+
+    // 确保不超出Flash范围
+    if (startAddr >= flashEnd) {
+        log(QString("起始地址 0x%1 超出Flash范围").arg(startAddr, 8, 16, QChar('0')));
+        m_serialManager->close();
+        return;
+    }
+
+    log(QString("检测到Flash大小: %1KB").arg(flashSizeKB));
+    log(QString("读取范围: 0x%1 - 0x%2 (%3 字节)")
+        .arg(startAddr, 8, 16, QChar('0'))
+        .arg(flashEnd, 8, 16, QChar('0'))
+        .arg(readLength));
+
+    // 选择保存文件路径
+    QString savePath = QFileDialog::getSaveFileName(
+        this,
+        "保存Flash内容",
+        QString(),
+        "BIN文件 (*.bin);;HEX文件 (*.hex);;所有文件 (*.*)"
+    );
+
+    if (savePath.isEmpty()) {
+        m_serialManager->close();
+        return;
     }
 
     // 清除日志
@@ -820,34 +838,7 @@ void MainWindow::onReadFlashClicked()
     setStatus("正在读取...");
     onProgressChanged(0);
 
-    // 设置停止标志
-    m_stopFlag = false;
-    m_flasher->setStopFlag(&m_stopFlag);
-
-    // 进入 Bootloader 模式
-    SerialManager::BootMode mode = static_cast<SerialManager::BootMode>(ui->cbBootMode->currentIndex());
-    if (!m_serialManager->enterBootloader()) {
-        log("进入 Bootloader 失败");
-        m_serialManager->close();
-        setStatus("读取失败");
-        return;
-    }
-
-    // 等待
-    for (int i = 0; i < 10; ++i) {
-        QThread::msleep(20);
-        QApplication::processEvents();
-    }
-
-    // 初始化连接
-    if (!m_flasher->initConnection()) {
-        log("Bootloader 初始化失败: " + m_flasher->lastError());
-        m_serialManager->close();
-        setStatus("读取失败");
-        return;
-    }
-
-    // 读取Flash
+    // 读取Flash（已经在bootloader模式了）
     QByteArray flashData;
     if (!m_flasher->readFirmwareWithProgress(flashData, startAddr, readLength, 0, 100, this)) {
         log("读取失败: " + m_flasher->lastError());

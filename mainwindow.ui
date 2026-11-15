@@ -7,13 +7,13 @@
     <x>0</x>
     <y>0</y>
     <width>780</width>
-    <height>590</height>
+    <height>668</height>
    </rect>
   </property>
   <property name="minimumSize">
    <size>
     <width>780</width>
-    <height>590</height>
+    <height>620</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -23,7 +23,7 @@
    <string>
     * {
         color: #333333;
-        font-family: "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "Segoe UI", sans-serif;
+        font-family: &quot;Microsoft YaHei&quot;, &quot;PingFang SC&quot;, &quot;Hiragino Sans GB&quot;, &quot;Segoe UI&quot;, sans-serif;
     }
     QMainWindow { background-color: #f5f5f5; }
     QGroupBox {
@@ -173,14 +173,14 @@
             </item>
             <item>
              <widget class="QPushButton" name="btnRefreshPorts">
-              <property name="text">
-               <string>搜索</string>
-              </property>
               <property name="maximumSize">
                <size>
                 <width>50</width>
                 <height>16777215</height>
                </size>
+              </property>
+              <property name="text">
+               <string>搜索</string>
               </property>
              </widget>
             </item>
@@ -378,17 +378,15 @@
        </item>
        <item>
         <widget class="QPushButton" name="btnStartProgram">
-         <property name="text">
-          <string>开始烧录</string>
-         </property>
          <property name="minimumSize">
           <size>
            <width>0</width>
-           <height>45</height>
+           <height>34</height>
           </size>
          </property>
          <property name="font">
           <font>
+           <family>Microsoft YaHei</family>
            <pointsize>11</pointsize>
            <bold>true</bold>
           </font>
@@ -410,6 +408,9 @@
           QPushButton:disabled {
               background-color: #a5d6a5;
           }</string>
+         </property>
+         <property name="text">
+          <string>开始烧录</string>
          </property>
         </widget>
        </item>
@@ -445,10 +446,7 @@
        </item>
        <item>
         <layout class="QGridLayout" name="actionBtnGrid">
-         <property name="horizontalSpacing">
-          <number>6</number>
-         </property>
-         <property name="verticalSpacing">
+         <property name="spacing">
           <number>6</number>
          </property>
          <item row="0" column="0">
@@ -477,7 +475,13 @@
        <item>
         <spacer name="verticalSpacer">
          <property name="orientation">
-          <enum>Qt::Vertical</enum>
+          <enum>Qt::Orientation::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>0</width>
+           <height>0</height>
+          </size>
          </property>
         </spacer>
        </item>
@@ -488,9 +492,6 @@
      <layout class="QVBoxLayout" name="rightLayout">
       <item>
        <widget class="QTextEdit" name="logView">
-        <property name="readOnly">
-         <bool>true</bool>
-        </property>
         <property name="minimumSize">
          <size>
           <width>300</width>
@@ -499,8 +500,12 @@
         </property>
         <property name="font">
          <font>
+          <family>Consolas</family>
           <pointsize>14</pointsize>
          </font>
+        </property>
+        <property name="readOnly">
+         <bool>true</bool>
         </property>
        </widget>
       </item>
@@ -509,7 +514,13 @@
         <item>
          <spacer name="horizontalSpacer">
           <property name="orientation">
-           <enum>Qt::Horizontal</enum>
+           <enum>Qt::Orientation::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>0</width>
+            <height>0</height>
+           </size>
           </property>
          </spacer>
         </item>
@@ -524,8 +535,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>800</width>
-     <height>22</height>
+     <width>780</width>
+     <height>28</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuSystem">

@@ -191,9 +191,9 @@ uint8_t HexParser::calcChecksum(const QByteArray &record)
     return sum;
 }
 
-HexParser::ParseResult HexParser::readBinFile(const QString &filePath)
+HexParser::ParseResult HexParser::readBinFile(const QString &filePath, quint32 startAddress)
 {
-    ParseResult result = {false, "", QByteArray(), 0, 0, QList<Segment>()};
+    ParseResult result = {false, "", QByteArray(), startAddress, 0, QList<Segment>()};
 
     QFile file(filePath);
     if (!file.open(QIODevice::ReadOnly)) {
@@ -205,19 +205,24 @@ HexParser::ParseResult HexParser::readBinFile(const QString &filePath)
     file.close();
 
     result.success = true;
-    result.startAddress = 0;
-    result.endAddress = result.data.size() - 1;
+    result.startAddress = startAddress;
+    result.endAddress = startAddress + result.data.size() - 1;
 
     // 创建单个段
     Segment seg;
-    seg.startAddress = 0;
+    seg.startAddress = startAddress;
     seg.data = result.data;
     result.segments.append(seg);
 
     return result;
 }
 
-HexParser::ParseResult HexParser::loadFirmware(const QString &filePath)
+HexParser::ParseResult HexParser::readBinFile(const QString &filePath)
+{
+    return readBinFile(filePath, 0);  // 默认起始地址为0
+}
+
+HexParser::ParseResult HexParser::loadFirmware(const QString &filePath, quint32 binStartAddress)
 {
     QFileInfo info(filePath);
     QString ext = info.suffix().toLower();
@@ -226,7 +231,7 @@ HexParser::ParseResult HexParser::loadFirmware(const QString &filePath)
     if (ext == "hex") {
         return parser.parseFile(filePath);
     } else if (ext == "bin") {
-        return readBinFile(filePath);
+        return readBinFile(filePath, binStartAddress);
     } else {
         ParseResult result = {false, "不支持的文件格式: " + ext, QByteArray(), 0, 0, QList<Segment>()};
         return result;
